@@ -4,6 +4,7 @@ import torch
 import torch.autograd as autograd
 import torch.nn as nn
 
+
 class Base(nn.Module):
     def __init__(self, input_shape, num_actions):
         super().__init__()
@@ -27,6 +28,15 @@ class Base(nn.Module):
             x = self.features(x)
         return x.view(1, -1).size(1)
 
+    def act(self, state, epsilon=0.0):
+        if not isinstance(state, torch.FloatTensor):
+            state = torch.from_numpy(state).float().unsqueeze(0).to('cuda')
+        if random.random() < epsilon:
+            return random.randint(0, self.num_actions - 1)
+        else:
+            return torch.argmax(self.forward(state)[0]).item()
+
+
 class DQN(Base):
     def construct(self):
         self.layers = nn.Sequential(
@@ -34,6 +44,7 @@ class DQN(Base):
             nn.ReLU(),
             nn.Linear(256, self.num_actions)
         )
+
 
 class ConvDQN(DQN):
     def construct(self):
@@ -44,14 +55,6 @@ class ConvDQN(DQN):
             nn.ReLU(),
         )
         super().construct()
-
-    def act(self, state, epsilon=0.0):
-        if not isinstance(state, torch.FloatTensor):
-            state = torch.from_numpy(state).float().unsqueeze(0).to('cuda')
-        if random.random() < epsilon:
-            return random.randint(0, self.num_actions - 1)
-        else:
-            return torch.argmax(self.forward(state)[0]).item()
 
 
 class AtariDQN(DQN):

@@ -3,8 +3,14 @@ try:
 except:
     class Agent(object): pass
 import random
+import torch
+from models import ConvDQN
+import os
 
-class ExampleAgent(Agent):
+script_path = os.path.dirname(os.path.realpath(__file__))
+model_path = os.path.join(script_path, 'model.pt')
+
+class DQNAgent(Agent):
     '''
     An example agent that just output a random action.
     '''
@@ -17,12 +23,13 @@ class ExampleAgent(Agent):
         For example, you might want to load the appropriate neural networks weight 
         in this method.
         '''
-        test_case_id = kwargs.get('test_case_id')
-        '''
-        # Uncomment to help debugging
-        print('>>> __INIT__ >>>')
-        print('test_case_id:', test_case_id)
-        '''
+        self.model_path = kwargs['model_path']
+        self.device = torch.device(kwargs['device'])
+
+        model_class, model_state_dict, input_shape, num_actions = torch.load(self.model_path, map_location=torch.device(self.device))
+
+        self.dqn = eval(model_class)(input_shape, num_actions).to(self.device)
+        self.dqn.load_state_dict(model_state_dict)
 
     def initialize(self, **kwargs):
         '''
@@ -39,17 +46,7 @@ class ExampleAgent(Agent):
 
         This function will be called once before the evaluation.
         '''
-        fast_downward_path  = kwargs.get('fast_downward_path')
-        agent_speed_range   = kwargs.get('agent_speed_range')
-        gamma               = kwargs.get('gamma')
-
-        '''
-        # Uncomment to help debugging
-        print('>>> INITIALIZE >>>')
-        print('fast_downward_path:', fast_downward_path)
-        print('agent_speed_range:', agent_speed_range)
-        print('gamma:', gamma)
-        '''
+        pass
 
     def step(self, state, *args, **kwargs):
         ''' 
@@ -70,7 +67,7 @@ class ExampleAgent(Agent):
         print('>>> STEP >>>')
         print('state:', state)
         '''
-        return random.randrange(5)
+        return torch.argmax(self.dqn.forward(torch.from_numpy(state).float().unsqueeze(0).to(self.device))[0]).item()
 
     def update(self, *args, **kwargs):
         '''
@@ -91,22 +88,7 @@ class ExampleAgent(Agent):
 
         This function might be useful if you want to have policy that is dependant to its past.
         '''
-        state       = kwargs.get('state')
-        action      = kwargs.get('action')
-        reward      = kwargs.get('reward')
-        next_state  = kwargs.get('next_state')
-        done        = kwargs.get('done')
-        info        = kwargs.get('info')
-        '''
-        # Uncomment to help debugging
-        print('>>> UPDATE >>>')
-        print('state:', state)
-        print('action:', action)
-        print('reward:', reward)
-        print('next_state:', next_state)
-        print('done:', done)
-        print('info:', info)
-        '''
+        pass
 
 
 def create_agent(test_case_id, *args, **kwargs):
@@ -114,7 +96,7 @@ def create_agent(test_case_id, *args, **kwargs):
     Method that will be called to create your agent during testing.
     You can, for example, initialize different class of agent depending on test case.
     '''
-    return ExampleAgent(test_case_id=test_case_id)
+    return DQNAgent(model_path=model_path, device="cuda" if torch.cuda.is_available() else "cpu")
 
 
 if __name__ == '__main__':
